@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebSocket Chat</title>
+
+    <style>
+      html {
+        height: 100%;
+      }
+
+      body {
+        height: 100%;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+        background: linear-gradient(to top, #0ba360 0%, #3cba92 100%);
+        height: 100%;
+      }
+
+      .general-info {
+        display: flex;
+        justify-content: space-around;
+        min-width: 300px;
+        border: 2px solid greenyellow;
+      }
+
+      #messages {
+        padding: 20px;
+        border: 2px solid red;
+        display: flex;
+        flex-direction: column;
+        min-width: 300px;
+      }
+
+      #roomInfo {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .own-message {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .others-message {
+        display: flex;
+        justify-content: flex-start;
+      }
+
+      .server-message {
+        display: flex;
+        justify-content: center;
+        font-weight: 600;
+        font-style: italic;
+        color: red;
+      }
+
+      .message-border {
+        background-color: aquamarine;
+        border: 1px solid gray;
+        border-radius: 100px;
+        padding: 8px;
+      }
+
+      .send-message {
+        display: flex;
+        justify-content: space-between;
+        min-width: 300px;
+      }
+
+      #messageInput {
+        width: 250px;
+        height: 50px;
+        background: darkseagreen;
+        color: black;
+      }
+
+      .send-msg {
+        background: none;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Demo Chat</h1>
+
+      <div class="general-info">
+        <div id="roomInfo">
+          <div>
+            <strong>Current Room : </strong>
+            <div id="roomName"></div>
+          </div>
+          <div id="userList"></div>
+        </div>
+
+        <div id="roomList">
+          <strong>Available Rooms:</strong>
+          <ul id="rooms"></ul>
+        </div>
+      </div>
+
+      <div id="messages"></div>
+
+      <div class="send-message">
+        <input type="text" id="messageInput" placeholder="Type a message..." />
+
+        <button type="submit" onclick="sendMessage()" class="send-msg">
+          Send
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const room = prompt("Enter room name:");
+      const username = prompt("Enter your username:");
+
+      const socket = new WebSocket(
+        `ws://localhost:8081/ws/${room}/${username}`
+      );
+
+      document.getElementById("roomName").textContent = `${room}`;
+
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        console.log("Received message:", message);
+
+        if (message.users) {
+          updateUserList(message.users);
+        } else {
+          displayMessage(message);
+        }
+      };
+
+      function sendMessage() {
+        const content = document.getElementById("messageInput").value;
+        const message = { username, content, room };
+        socket.send(JSON.stringify(message));
+        document.getElementById("messageInput").value = "";
+      }
+
+      function displayMessage(message) {
+        const messagesDiv = document.getElementById("messages");
+
+        const messageDiv = document.createElement("div");
+        const messageElement = document.createElement("p");
+
+        if (message.username === "Server") {
+          messageElement.textContent = `${message.username} : ${message.content}`;
+          messageDiv.classList.add("server-message");
+        } else if (message.username === username) {
+          messageElement.textContent = `Me: ${message.content}`;
+          messageDiv.classList.add("own-message");
+        } else {
+          messageElement.textContent = `${message.username} : ${message.content}`;
+          messageDiv.classList.add("others-message");
+        }
+
+        messageElement.classList.add("message-border");
+        messageDiv.appendChild(messageElement);
+
+        messagesDiv.appendChild(messageDiv);
+      }
+
+      function updateUserList(users) {
+        if (users !== null) {
+          console.log("Updating user list with:", users);
+
+          const userListDiv = document.getElementById("userList");
+          userListDiv.innerHTML = "<strong>Users in the room:</strong><br>";
+
+          users.forEach((user) => {
+            const userElement = document.createElement("span");
+            userElement.textContent = user + " ,";
+            userListDiv.appendChild(userElement);
+          });
+        }
+      }
+
+      window.onload = function () {
+        fetch("/rooms")
+          .then((response) => response.json())
+          .then((rooms) => {
+            const roomsList = document.getElementById("rooms");
+            console.log(rooms);
+            rooms.forEach((room) => {
+              console.log(room);
+              if (room !== null) {
+                const roomItem = document.createElement("li");
+                roomItem.textContent = room;
+                roomsList.appendChild(roomItem);
+              }
+            });
+          })
+          .catch((error) => console.error("Error fetching rooms:", error));
+      };
+    </script>
+  </body>
+</html>
